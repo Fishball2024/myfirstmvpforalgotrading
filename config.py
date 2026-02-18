@@ -4,3 +4,5 @@ from datetime import datetime, timedelta
 # 今天是 2026-02-18，這將抓取自 2016-02-18 左右開始的數據
 END_DATE = datetime.now().strftime('%Y-%m-%d')
 START_DATE = (datetime.now() - timedelta(days=10*365)).strftime('%Y-%m-%d')
+
+# ... (其他設定保持不變) ...
