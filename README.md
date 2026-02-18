@@ -1,2 +1,0 @@
-# myfirstmvpforalgotrading
-myfirstmvpforalgotrading
