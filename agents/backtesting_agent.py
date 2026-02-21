@@ -1,7 +1,7 @@
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 import pandas as pd
-# 導入你剛才寫好的 DataAgent
+# 導入 DataAgent
 from agents.data_agent import DataAgent
 from config import INITIAL_CASH, TICKERS
 
@@ -12,17 +12,17 @@ class TripleMAStrategy(Strategy):
     n3 = 200
 
     def init(self):
-        # 計算三條均線
+        # 使用 lambda 確保數據格式正確傳遞給 rolling
         self.ma50 = self.I(lambda x: pd.Series(x).rolling(self.n1).mean(), self.data.Close)
         self.ma150 = self.I(lambda x: pd.Series(x).rolling(self.n2).mean(), self.data.Close)
         self.ma200 = self.I(lambda x: pd.Series(x).rolling(self.n3).mean(), self.data.Close)
 
     def next(self):
-        # 策略邏輯：當 50 > 150 且 150 > 200 時買入
+        # 策略邏輯：當 50MA > 150MA 且 150MA > 200MA 時買入
         if crossover(self.ma50, self.ma150) and self.ma150 > self.ma200:
             self.buy()
         
-        # 賣出邏輯：當 50 跌破 150 時出場
+        # 賣出邏輯：當 150MA 穿透回 50MA (50跌破150) 時出場
         elif crossover(self.ma150, self.ma50):
             self.position.close()
 
@@ -35,30 +35,37 @@ def run_backtest_on_all():
         print("❌ 無法獲取回測數據")
         return []
 
-    results = [] # 用於存儲所有股票的結果，供 main.py 排行榜使用
+    results = [] # 用於存儲結果清單
     
-    # 循環跑回測
     for ticker in TICKERS:
         try:
-            # 💡 修正點：從 MultiIndex 中提取單一股票數據並去掉缺失值
+            # 檢查該股票是否在數據表中 (處理 MultiIndex)
             if ticker not in full_data.columns.levels[0]:
                 continue
                 
+            # 提取數據並清理空值
             ticker_data = full_data[ticker].dropna().copy()
             
-            # 💡 修正點：確保列名符合 Backtesting.py 的要求 (首字母大寫)
-            # yfinance auto_adjust=True 會回傳 Open, High, Low, Close, Volume
-            # 這裡做一個保險的列名轉換
-            ticker_data = ticker_data[['Open', 'High', 'Low', 'Close', 'Volume']]
+            # 確保欄位符合 Backtesting 規範
+            available_cols = ticker_data.columns.tolist()
+            # 根據 DataAgent 的 auto_adjust=True，欄位應為 Open, High, Low, Close, Volume
+            needed_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+            
+            # 檢查欄位是否存在
+            if not all(col in available_cols for col in needed_cols):
+                print(f"⚠️ {ticker} 數據格式不符，跳過。")
+                continue
+
+            ticker_data = ticker_data[needed_cols]
 
             # 執行回測
             bt = Backtest(ticker_data, TripleMAStrategy, cash=INITIAL_CASH, commission=.002)
             stats = bt.run()
             
-            # 打印單一標的結果
+            # 實時打印進度
             print(f"📊 {ticker}: Return {stats['Return [%]']:.2f}% | MDD {stats['Max. Drawdown [%]']:.2f}%")
             
-            # 💡 修正點：將關鍵指標存入字典，以便 main.py 生成排行榜
+            # 存入結果清單
             results.append({
                 "Ticker": ticker,
                 "Return [%]": stats['Return [%]'],
@@ -71,11 +78,10 @@ def run_backtest_on_all():
             print(f"❌ {ticker} 回測出錯: {e}")
             continue
 
-    return results # 回傳完整結果清單
+    return results
 
 if __name__ == "__main__":
     res = run_backtest_on_all()
-    # 簡單打印測試
     if res:
         print("\n--- 測試排行榜 ---")
         print(pd.DataFrame(res).sort_values(by="Return [%]", ascending=False).head())
