@@ -20,6 +20,13 @@ def main():
     print("\n📈 正在對 23 隻標的執行『三均線多頭策略』回測...")
     # 這裡我們稍微修改一下 backtest_agent 的回測函數，讓它回傳結果
     results = run_backtest_on_all() 
+
+    # 建議修改第 21 行附近
+try:
+    results = run_backtest_on_all() 
+except Exception as e:
+    print(f"❌ 回測執行失敗: {e}")
+    results = None
     
     # 4. 排序並輸出最專業的報告
     if results:
