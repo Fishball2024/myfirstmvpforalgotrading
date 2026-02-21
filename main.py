@@ -1,6 +1,6 @@
 import pandas as pd
 from agents.data_agent import DataAgent
-from agents.backtest_agent import run_backtest_on_all
+from agents.backtesting_agent import run_backtest_on_all
 import os
 
 def main():
