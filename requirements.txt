@@ -7,3 +7,7 @@ Bokeh==2.4.3
 python-dotenv
 gunicorn
 requests
+# --- 新增的部分 ---
+lxml            # 必備：讓 pandas 能夠解析 Wikipedia 的 HTML 表格
+beautifulsoup4  # 輔助：解析網頁數據常用
+scipy           # 必備：backtesting 執行策略運算時需要的數學庫
