@@ -18,7 +18,7 @@ class StockScreener:
             df = pd.read_html(response.text)[0]
             return df['Symbol'].str.replace('.', '-', regex=False).tolist()
         except Exception as e:
-            print(f"❌ 獲取名帶失敗: {e}")
+            print(f"❌ 獲取名單失敗: {e}")
             return []
 
     def calculate_rsi(self, series, period=14):
@@ -66,9 +66,11 @@ class StockScreener:
                     }
             return None
         except Exception:
+            # 這是第 56 行左右的關鍵點，確保這個 except 區塊存在
             return None
 
     def run(self):
+        """啟動篩選流程"""
         all_tickers = self.get_sp500_tickers()
         if not all_tickers:
             return []
