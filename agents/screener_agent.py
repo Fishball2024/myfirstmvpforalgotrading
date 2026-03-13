@@ -52,4 +52,5 @@ class StockScreener:
             
             # RSI 計算
             rsi_values = self.calculate_rsi(close)
-            last_rsi = r
+            last_rsi = rsi_values.iloc[-1]
+
