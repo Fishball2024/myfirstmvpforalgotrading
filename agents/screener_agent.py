@@ -16,10 +16,9 @@ class StockScreener:
         try:
             response = requests.get(url, headers=headers)
             df = pd.read_html(response.text)[0]
-            # yfinance 格式：將 . 替換為 - (例如 BRK.B 轉為 BRK-B)
             return df['Symbol'].str.replace('.', '-', regex=False).tolist()
         except Exception as e:
-            print(f"❌ 獲取名單失敗: {e}")
+            print(f"❌ 獲取名帶失敗: {e}")
             return []
 
     def calculate_rsi(self, series, period=14):
@@ -35,8 +34,7 @@ class StockScreener:
         try:
             stock = yf.Ticker(ticker)
             
-            # 1. 抓取數據 (獲取 1 年日線數據以計算 MA200)
-            # 使用 history 獲取價格，這比直接拿 info 快很多
+            # 1. 抓取數據 (獲取 1 年日線數據以計算 MA)
             df = stock.history(period="1y", interval="1d", actions=False)
             if len(df) < 200: 
                 return None
@@ -47,10 +45,40 @@ class StockScreener:
             ma100 = close.rolling(100).mean().iloc[-1]
             ma200 = close.rolling(200).mean().iloc[-1]
             
-            # 成交量 (取最近 20 日平均成交量)
+            # 成交量 (最近 20 日平均成交量)
             vol_avg = df['Volume'].tail(20).mean()
             
             # RSI 計算
             rsi_values = self.calculate_rsi(close)
             last_rsi = rsi_values.iloc[-1]
 
+            # 3. 條件篩選 (MA50 > MA200 > MA100 且 RSI > 50 且 成交量 > 2M)
+            if (ma50 > ma200 > ma100) and (last_rsi > 50) and (vol_avg > 2000000):
+                # 4. 市值過濾 (> 2B)
+                market_cap = stock.info.get('marketCap', 0)
+                if market_cap > 2000000000:
+                    return {
+                        "Symbol": ticker,
+                        "Price": round(close.iloc[-1], 2),
+                        "MarketCap": f"{market_cap/1e9:.1f}B",
+                        "Volume": f"{vol_avg/1e6:.1f}M",
+                        "RSI": round(last_rsi, 2)
+                    }
+            return None
+        except Exception:
+            return None
+
+    def run(self):
+        all_tickers = self.get_sp500_tickers()
+        if not all_tickers:
+            return []
+            
+        tickers = all_tickers[:self.limit] if self.limit else all_tickers
+        print(f"🔎 開始篩選 {len(tickers)} 隻股票 (S&P 500)...")
+        
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(executor.map(self.check_single_stock, tickers))
+        
+        final_list = [r for r in results if r is not None]
+        print(f"✅ 篩選完成！共找到 {len(final_list)} 隻符合條件。")
+        return final_list
